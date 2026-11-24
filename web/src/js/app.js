@@ -343,7 +343,7 @@ function compareVersions(a, b) {
 }
 
 /**
- * Read the clock's version and fetch the latest version from GitHub with a five-second timeout.
+ * Read the clock's version and fetch the latest published version from the fork's site with a five-second timeout.
  * Compare them and update the version labels and update link or status message.
  * @returns {Promise<void>}
  */
@@ -353,8 +353,10 @@ async function loadVersions() {
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 5000)
     try {
-        const res = await fetch("https://raw.githubusercontent.com/flyerjohan/nightscout-clock/refs/heads/main/data/version.txt?" + Date.now(), { cache: "no-store", signal: ctrl.signal })
-        v.latest = res.ok ? (await res.text()).trim() : ""
+        // The installer manifest on the fork's site names the release whose images the site serves,
+        // which are the ones an update over WiFi installs.
+        const res = await fetch(UPDATE_SITE + "manifest.json?" + Date.now(), { cache: "no-store", signal: ctrl.signal })
+        v.latest = res.ok ? String((await res.json()).version || "").trim() : ""
     } catch (e) {
         v.latest = ""
     } finally {
