@@ -1342,8 +1342,20 @@ async function downloadDebugLogs() {
 function versionStatusNodes() {
     const v = ui.versions
     if (v.update) {
-        return [el("a", { href: "https://flyerjohan.github.io/nightscout-clock/#install", target: "_blank", rel: "noopener noreferrer" }, `Update to ${v.latest}`), " · ",
-            el("a", { href: "https://github.com/ktomy/nightscout-clock/tree/main?tab=readme-ov-file#changes", target: "_blank", rel: "noopener noreferrer" }, "Changes")]
+        const progress = el("span")
+        const PHASES = { downloading: "Downloading…", filesystem: "Installing the settings page…", firmware: "Installing the firmware…", restarting: "Restarting" }
+        const button = el("button.btn.sm", { type: "button", onclick: async () => {
+            button.disabled = true
+            const r = await api.updateOverWifi({ onPhase: (p, s) => { progress.textContent = " " + PHASES[p] + (s ? ` ${s} s` : "") } })
+            button.disabled = false
+            progress.textContent = ""
+            if (r.ok) {
+                toast(`Updated to ${v.latest}. Reloading…`, "ok")
+                setTimeout(() => location.reload(), 1500)
+            } else toast(r.error, "bad", 10000)
+        } }, icon("download"), `Update to ${v.latest} over WiFi`)
+        return [button, progress, el("br"), "Keeps your settings. Do not unplug the clock while it updates. Or use the ",
+            el("a", { href: "https://flyerjohan.github.io/nightscout-clock/#install", target: "_blank", rel: "noopener noreferrer" }, "USB installer"), "."]
     }
     return [v.status || "Checking for updates…"]
 }

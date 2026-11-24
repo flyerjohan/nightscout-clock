@@ -9,6 +9,13 @@
 
 class ServerManager_ {
 private:
+    // State of an update over WiFi, see handleUpdateUpload.
+    bool otaOk = false;
+    bool otaFilesystem = false;
+    String otaError;
+    String otaSavedConfig;
+    void handleUpdateUpload(
+        AsyncWebServerRequest* request, size_t index, uint8_t* data, size_t len, bool final);
     bool apMode;
     AsyncWebServer* ws;
     AsyncStaticWebHandler* staticFilesHandler = nullptr;

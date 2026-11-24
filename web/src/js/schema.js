@@ -66,6 +66,11 @@ const FACES = [
     { id: "cat", name: "Cat", about: "A little cat that reacts to the glucose, beside the value" },
     { id: "night", name: "Night", about: "Red value and arrow at the lowest brightness, for a dark bedroom" },
     { id: "weather", name: "Weather", about: "The sky and temperature in Valencia, with a glucose color line" },
+    { id: "heart", name: "Heart", about: "A heart beating in the glucose color, beside the value" },
+    { id: "stars", name: "Night sky", about: "A moon and twinkling stars beside the value" },
+    { id: "fish", name: "Fish", about: "A little fish swimming among bubbles, beside the value" },
+    { id: "big_clock", name: "Big clock", about: "The time, with a glucose color line under it" },
+    { id: "date", name: "Date", about: "Weekday and day in Spanish, with a glucose color line" },
     { id: "simple", name: "Simple", about: "Value, trend arrow and age bars" },
     { id: "graph", name: "Full glucose graph", about: "Three hours of readings across the panel" },
     { id: "graph_and_bg", name: "Glucose graph and value", about: "Recent readings beside the current value" },
@@ -90,7 +95,9 @@ const SCHEDULE_CYCLE = "cycle"
 
 // Clocks set up on 1.0.0 or earlier stored each face as its number, the face's index in this order.
 // Must match NUMBERED_FACE_IDS in SettingsSchedule.cpp.
-const NUMBERED_FACE_IDS = FACES.filter(f => !["cat", "night", "weather"].includes(f.id)).slice(0, 12).map(f => f.id)
+// Faces this fork added; the numbered-face settings keep counting the original faces only.
+const NEW_FACE_IDS = ["cat", "night", "weather", "heart", "stars", "fish", "big_clock", "date"]
+const NUMBERED_FACE_IDS = FACES.filter(f => !NEW_FACE_IDS.includes(f.id)).slice(0, 12).map(f => f.id)
 // Any other number is left as it is, so it is refused like any unknown face.
 const readFaceId = id => typeof id === "number" ? NUMBERED_FACE_IDS[id] ?? id : id
 

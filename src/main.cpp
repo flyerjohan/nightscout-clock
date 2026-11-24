@@ -121,6 +121,25 @@ void loop() {
 
     ServerManager.tick();
 
+    // While an image is written over WiFi nothing else may use the network, the flash or much memory.
+    if (OTA_IN_PROGRESS) {
+        const unsigned long lastChunk = OTA_LAST_CHUNK_MS;  // set by the web server task
+        const unsigned long now = millis();
+        if (now < lastChunk || now - lastChunk < 60000) {
+            static unsigned long lastDrawn = 0;
+            if (millis() - lastDrawn > 2000) {
+                lastDrawn = millis();
+                DisplayManager.clearMatrix();
+                DisplayManager.setTextColor(COLOR_CYAN);
+                DisplayManager.printText(0, 6, "Update", TEXT_ALIGNMENT::CENTER, 0);
+                DisplayManager.update();
+            }
+            delay(10);
+            return;
+        }
+        OTA_IN_PROGRESS = false;  // the upload stopped arriving
+    }
+
     if (ServerManager.isConnected) {
         bgSourceManager.tick();
         TlsMemory::restartIfOutOfMemory();

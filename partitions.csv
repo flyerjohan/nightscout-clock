@@ -1,5 +1,6 @@
 nvs,      data, nvs,     36K,     20K,
 otadata,  data, ota,     56K,     8K,
-app0,     app,  ota_0,   64K,     2M,
-# app1,     app,  ota_1,   ,        1M, # disabling OTA while we are not using it for now
-spiffs,   data, spiffs,  ,        1M,
+# Two app slots so the firmware can be updated over WiFi; the filesystem holds the web UI and settings.
+app0,     app,  ota_0,   64K,     1792K,
+app1,     app,  ota_1,   ,        1792K,
+spiffs,   data, spiffs,  ,        448K,

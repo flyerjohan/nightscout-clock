@@ -57,6 +57,11 @@ void BGDisplayManager_::setup() {
         {"cat", "Cat", new BGDisplayFaceCat()},
         {"night", "Night", new BGDisplayFaceNight()},
         {"weather", "Weather", new BGDisplayFaceWeather()},
+        {"heart", "Heart", new BGDisplayFaceHeart()},
+        {"stars", "Night sky", new BGDisplayFaceStars()},
+        {"fish", "Fish", new BGDisplayFaceFish()},
+        {"big_clock", "Big clock", new BGDisplayFaceBigClock()},
+        {"date", "Date", new BGDisplayFaceDate()},
     };
 
     configureActiveFaces();

@@ -4,6 +4,7 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
+#include <Update.h>
 #include <WiFi.h>
 #include <esp_system.h>
 #include <esp_wifi.h>
@@ -474,6 +475,23 @@ void ServerManager_::setupWebServer(IPAddress ip) {
             request->send(200, "application/json", "{\"status\": \"ok\"}");
         }));
 
+    // Update over WiFi: POST /api/update?target=firmware or ?target=filesystem, with the image as a
+    // multipart file. The filesystem image holds the web UI and would replace the settings file too, so
+    // the settings are kept in memory and written back after it. /api/reset restarts into the update.
+    ws->on(
+        "/api/update", HTTP_POST,
+        [this](AsyncWebServerRequest* request) {
+            if (!enforceAuthentication(request)) {
+                return;
+            }
+            const bool ok = otaOk && !Update.hasError();
+            String response = ok ? "{\"status\": \"ok\"}"
+                                 : "{\"status\": \"error\", \"error\": \"" + otaError + "\"}";
+            request->send(ok ? 200 : 500, "application/json", response);
+        },
+        [this](AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
+               bool final) { handleUpdateUpload(request, index, data, len, final); });
+
     ws->on("/api/reset", HTTP_POST, [this](AsyncWebServerRequest* request) {
         if (!enforceAuthentication(request)) {
             return;
@@ -774,5 +792,78 @@ void ServerManager_::tick() {
         dnsServer.processNextRequest();
     } else {
         initTimeIfNeeded();
+    }
+}
+
+void ServerManager_::handleUpdateUpload(
+    AsyncWebServerRequest* request, size_t index, uint8_t* data, size_t len, bool final) {
+    if (index == 0) {
+        otaOk = false;
+        otaError = "";
+        if (isWebAuthEnabled() && !isRequestAuthenticated(request)) {
+            otaError = "unauthorized";
+            return;
+        }
+        otaFilesystem = request->hasParam("target") && request->getParam("target")->value() == "filesystem";
+        if (Update.isRunning()) {
+            Update.abort();  // an earlier upload that never finished
+        }
+        OTA_IN_PROGRESS = true;
+        OTA_LAST_CHUNK_MS = millis();
+        if (otaFilesystem) {
+            otaSavedConfig = "";
+            File config = LittleFS.open(CONFIG_JSON);
+            if (config) {
+                otaSavedConfig = config.readString();
+                config.close();
+            }
+            LittleFS.end();
+        }
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN, otaFilesystem ? U_SPIFFS : U_FLASH)) {
+            otaError = String("could not start: ") + Update.errorString();
+            DEBUG_PRINTLN("Update: " + otaError);
+            if (otaFilesystem) {
+                LittleFS.begin();
+            }
+            OTA_IN_PROGRESS = false;
+            return;
+        }
+        otaOk = true;
+        DEBUG_PRINTLN(otaFilesystem ? "Update: writing the filesystem" : "Update: writing the firmware");
+    }
+
+    if (!otaOk) {
+        return;
+    }
+    OTA_LAST_CHUNK_MS = millis();
+    if (Update.write(data, len) != len) {
+        otaOk = false;
+        otaError = String("write failed: ") + Update.errorString();
+        Update.abort();
+        if (otaFilesystem) {
+            LittleFS.begin();
+        }
+        OTA_IN_PROGRESS = false;
+        return;
+    }
+
+    if (final) {
+        if (!Update.end(true)) {
+            otaOk = false;
+            otaError = String("could not finish: ") + Update.errorString();
+        }
+        if (otaFilesystem) {
+            LittleFS.begin();
+            if (otaSavedConfig.length() > 0) {
+                File config = LittleFS.open(CONFIG_JSON, FILE_WRITE);
+                if (config) {
+                    config.print(otaSavedConfig);
+                    config.close();
+                }
+                otaSavedConfig = "";
+            }
+        }
+        DEBUG_PRINTLN(otaOk ? "Update: done" : "Update: " + otaError);
+        OTA_IN_PROGRESS = false;
     }
 }

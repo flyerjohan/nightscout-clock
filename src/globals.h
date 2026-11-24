@@ -65,6 +65,10 @@ extern uint16_t LDR_RAW;
 extern uint8_t BATTERY_PERCENT;
 extern uint16_t BATTERY_RAW;
 extern bool MATRIX_OFF;
+// True while a firmware or filesystem image is being written over WiFi; the main loop pauses.
+extern volatile bool OTA_IN_PROGRESS;
+// millis() of the last image chunk; an upload that stops arriving no longer pauses the clock.
+extern volatile unsigned long OTA_LAST_CHUNK_MS;
 extern uint8_t MIN_BRIGHTNESS;
 extern uint8_t MAX_BRIGHTNESS;
 extern const String sound_boot PROGMEM;

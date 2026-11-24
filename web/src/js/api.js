@@ -78,6 +78,8 @@
  * @property {string} [error] Explanation suitable for display when the operation fails.
  */
 
+// This fork's site, which serves the latest release's images with CORS for updates over WiFi.
+const UPDATE_SITE = "https://flyerjohan.github.io/nightscout-clock/"
 const STATUS_EVERY_MS = 15000
 const STATUS_MAX_BACKOFF_MS = 60000
 
@@ -107,7 +109,7 @@ const api = (() => {
      * @param {RequestOptions} [options={}] - Body, timeout, and raw-response options.
      * @returns {Promise<ApiReply | Response>}
      */
-    function request(method, path, { body, timeout = 8000, raw = false } = {}) {
+    function request(method, path, { body, form, timeout = 8000, raw = false } = {}) {
         return enqueue(async () => {
             const ctrl = new AbortController()
             const timer = setTimeout(() => ctrl.abort(), timeout)
@@ -117,6 +119,7 @@ const api = (() => {
                     init.headers = { "Content-Type": "application/json" }
                     init.body = typeof body === "string" ? body : JSON.stringify(body)
                 }
+                if (form !== undefined) init.body = form
                 const res = await fetch(path, init)
                 if (res.status === 401) events.emit("locked")
                 if (raw) return res
@@ -334,8 +337,46 @@ const api = (() => {
         })
     }
 
+    /**
+     * Download the latest release images from the fork's site, write them to the clock over WiFi and
+     * restart it. The web UI (filesystem) goes first, then the firmware; the clock keeps its settings.
+     * @param {{ onPhase?: (phase: string, seconds?: number) => void }} [options={}] - Progress callback.
+     * @returns {Promise<SaveResult>}
+     */
+    function updateOverWifi({ onPhase = () => {} } = {}) {
+        return exclusive(async () => {
+            onPhase("downloading")
+            const get = async name => {
+                const r = await fetch(UPDATE_SITE + "artifacts/" + name + "?" + Date.now(), { cache: "no-store" })
+                if (!r.ok) throw new Error(name)
+                return r.blob()
+            }
+            let images
+            try { images = { filesystem: await get("littlefs.bin"), firmware: await get("firmware.bin") } }
+            catch (e) { return { ok: false, error: "Could not download the update. Check that this phone or computer has internet." } }
+            for (const target of ["filesystem", "firmware"]) {
+                onPhase(target)
+                const data = new FormData()
+                data.append("image", images[target], target + ".bin")
+                try {
+                    const r = await request("POST", "/api/update?target=" + target, { form: data, timeout: 180000 })
+                    if (r.status === 401) return { ok: false, locked: true, error: "Your login has expired. Unlock settings and try again." }
+                    if (!r.ok || !r.data || r.data.status !== "ok") {
+                        return { ok: false, error: `The clock could not install the ${target}: ${(r.data && (r.data.error || r.data.status)) || "HTTP " + r.status}` }
+                    }
+                } catch (e) { return { ok: false, error: e.message } }
+            }
+            onPhase("restarting")
+            try { await reset() } catch (e) { /* the clock may restart before it answers */ }
+            if (!(await waitForClock({ onTick: s => onPhase("restarting", s) }))) {
+                return { ok: false, error: "Installed, but the clock has not come back after 90 seconds." }
+            }
+            return { ok: true }
+        })
+    }
+
     return {
-        on: events.on, startStatus, saveSettings,
+        on: events.on, startStatus, saveSettings, updateOverWifi,
         authStatus, login, logout, loadConfig, version, downloadLogs, timezones, tryAlarm, switchFace, patients, scanWifi,
     }
 })()
