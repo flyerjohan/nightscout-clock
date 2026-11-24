@@ -56,6 +56,7 @@ void BGDisplayManager_::setup() {
         {"battery_uptime", "Battery and uptime", new BGDisplayFaceBatteryUptime()},
         {"cat", "Cat", new BGDisplayFaceCat()},
         {"night", "Night", new BGDisplayFaceNight()},
+        {"weather", "Weather", new BGDisplayFaceWeather()},
     };
 
     configureActiveFaces();
@@ -142,6 +143,7 @@ void BGDisplayManager_::setFaceByIndex(int index) {
     currentFaceIndex = index;
     currentFace = faces[currentFaceIndex].instance;
     currentFace->onActivate();
+    DisplayManager.refreshBrightness();
     lastRefreshEpoch = 0;
     resetFaceCycleTimer();
     runRenderCycle(RenderReason::FACE_CHANGE, ServerManager.getTimezonedTime());

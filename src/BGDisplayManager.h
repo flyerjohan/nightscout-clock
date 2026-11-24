@@ -26,6 +26,7 @@
 #include "BGDisplayFaceTimeOnly.h"
 #include "BGDisplayFaceUnicorn.h"
 #include "BGDisplayFaceValueAndDiff.h"
+#include "BGDisplayFaceWeather.h"
 #include "BGSource.h"
 #include "SettingsSchedule.h"
 
@@ -91,6 +92,13 @@ private:
     GlucoseReadings displayedReadings;
     std::vector<RegisteredClockFace> faces;
     BGDisplayFace* currentFace;
+
+public:
+    bool currentFaceKeepsLowestBrightness() const {
+        return currentFace != nullptr && currentFace->keepsLowestBrightness();
+    }
+
+private:
     int currentFaceIndex;
     GlucoseIntervals glucoseIntervals;
     bool lastRenderedDataWasOld = false;

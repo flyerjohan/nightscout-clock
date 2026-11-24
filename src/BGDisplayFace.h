@@ -49,6 +49,9 @@ public:
     virtual bool ticksEverySecond() const;
     // Suppress new alarms while this face is selected; existing alarms continue normally.
     virtual bool suppressesNewAlarms() const;
+    // Faces for a dark room keep the display at its lowest brightness while selected, whatever the
+    // brightness setting, except while an alarm sounds.
+    virtual bool keepsLowestBrightness() const { return false; }
 
 protected:
     // Configurable color for old readings and no-data screens;

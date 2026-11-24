@@ -10,6 +10,7 @@
 #include "ServerManager.h"
 #include "SettingsManager.h"
 #include "TlsMemory.h"
+#include "WeatherManager.h"
 #include "globals.h"
 #include "improv_consume.h"
 
@@ -125,9 +126,17 @@ void loop() {
         TlsMemory::restartIfOutOfMemory();
         bgDisplayManager.tick();
         bgAlarmManager.tick();
+        WeatherManager.tick();
 
-    } else if (ServerManager.isInAPMode) {
-        showJoinAP();
+    } else {
+        if (ServerManager.isInAPMode) {
+            showJoinAP();
+        }
+        // Without WiFi no reading comes, and the no-data alarm must still sound. A clock that was never
+        // set up has no network name and nothing to alert about yet.
+        if (!SettingsManager.settings.ssid.isEmpty()) {
+            bgAlarmManager.tick();
+        }
     }
 
 #ifdef WOKWI

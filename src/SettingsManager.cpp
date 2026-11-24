@@ -231,6 +231,12 @@ bool SettingsManager_::loadSettingsFromFile() {
     settings.alarm_high_melody = (*doc)["alarm_high_melody"].as<String>();
     settings.alarm_low_melody = (*doc)["alarm_low_melody"].as<String>();
     settings.alarm_urgent_low_melody = (*doc)["alarm_urgent_low_melody"].as<String>();
+    // Configurations from before the no-data alert have none of these keys; the alert is on by default.
+    settings.alarm_no_data_enabled = (*doc)["alarm_no_data_enabled"] | true;
+    settings.alarm_no_data_minutes = (*doc)["alarm_no_data_value"] | 20;
+    settings.alarm_no_data_snooze_minutes = (*doc)["alarm_no_data_snooze_interval"] | 30;
+    settings.alarm_no_data_alert_windows = readAlertWindows((*doc)["alarm_no_data_alert_windows"]);
+    settings.alarm_no_data_melody = (*doc)["alarm_no_data_melody"] | NO_DATA_DEFAULT_MELODY;
     settings.alarm_intensive_mode = (*doc)["alarm_intensive_mode"].as<bool>();
 
     settings.alarm_repeat_interval_seconds = (*doc)["alarm_repeat_interval_seconds"] | 300;
@@ -446,6 +452,11 @@ bool SettingsManager_::saveSettingsToFile() {
                       settings.alarm_high_alert_windows);
     (*doc)["alarm_high_melody"] = settings.alarm_high_melody;
     (*doc)["alarm_low_melody"] = settings.alarm_low_melody;
+    (*doc)["alarm_no_data_enabled"] = settings.alarm_no_data_enabled;
+    (*doc)["alarm_no_data_value"] = settings.alarm_no_data_minutes;
+    (*doc)["alarm_no_data_snooze_interval"] = settings.alarm_no_data_snooze_minutes;
+    writeAlertWindows(*doc, "alarm_no_data_alert_windows", settings.alarm_no_data_alert_windows);
+    (*doc)["alarm_no_data_melody"] = settings.alarm_no_data_melody;
     (*doc)["alarm_urgent_low_melody"] = settings.alarm_urgent_low_melody;
     (*doc)["alarm_intensive_mode"] = settings.alarm_intensive_mode;
     (*doc)["alarm_repeat_interval_seconds"] = settings.alarm_repeat_interval_seconds;

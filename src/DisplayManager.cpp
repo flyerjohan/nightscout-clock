@@ -365,17 +365,33 @@ void DisplayManager_::drawPixel(uint8_t x, uint8_t y, uint16_t color, bool updat
     }
 }
 
+// While an alarm sounds the display is at least this bright, so the value can be read on waking.
+static const int ALARM_MIN_BRIGHTNESS = 40;
+
+// currentBrightness keeps the brightness the settings and the light sensor ask for; what the LEDs
+// show can differ from it while a face keeps the lowest brightness or an alarm sounds.
 void DisplayManager_::setBrightness(int bri) {
     if (MATRIX_OFF) {
         matrix->setBrightness(0);
         // Keep currentBrightness untouched so setPower(true) can restore it;
         // overwriting it here left the display dark after a power cycle.
     } else {
-        matrix->setBrightness(bri);
         currentBrightness = bri;
+        int shown = bri;
+        if (alarmSounding) {
+            shown = max(bri, ALARM_MIN_BRIGHTNESS);
+        } else if (bgDisplayManager.currentFaceKeepsLowestBrightness()) {
+            shown = MIN_BRIGHTNESS;
+        }
+        matrix->setBrightness(shown);
     }
 
     matrix->show();
+}
+
+void DisplayManager_::setAlarmSounding(bool sounding) {
+    alarmSounding = sounding;
+    refreshBrightness();
 }
 
 void DisplayManager_::setPower(bool state) {

@@ -10,6 +10,7 @@
 class BGDisplayFaceNight : public BGDisplayFaceTextBase {
 public:
     void showReadings(const GlucoseReadings& readings, bool dataIsOld = false) const override;
+    bool keepsLowestBrightness() const override { return true; }
 };
 
 #endif  // BGDISPLAYFACENIGHT_H

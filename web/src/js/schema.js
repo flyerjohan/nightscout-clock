@@ -54,7 +54,8 @@
 /**
  * Shared metadata used to build a high, low, or urgent-low alarm card.
  * @typedef {Object} AlarmDescriptor
- * @property {'high' | 'low' | 'urgent_low'} t Alarm key suffix.
+ * @property {'high' | 'low' | 'urgent_low' | 'no_data'} t Alarm key suffix.
+ * @property {boolean} [minutes] The value is a number of minutes without a reading, not a glucose limit.
  * @property {string} name Display name.
  * @property {string} compare Label describing the threshold comparison.
  * @property {string} defaultMelody Default RTTTL sound.
@@ -63,7 +64,8 @@
 // Stable IDs must match BGDisplayManager::setup(); array order controls UI display order.
 const FACES = [
     { id: "cat", name: "Cat", about: "A little cat that reacts to the glucose, beside the value" },
-    { id: "night", name: "Night", about: "Red value and arrow that stay still, for a dark bedroom" },
+    { id: "night", name: "Night", about: "Red value and arrow at the lowest brightness, for a dark bedroom" },
+    { id: "weather", name: "Weather", about: "The sky and temperature in Valencia, with a glucose color line" },
     { id: "simple", name: "Simple", about: "Value, trend arrow and age bars" },
     { id: "graph", name: "Full glucose graph", about: "Three hours of readings across the panel" },
     { id: "graph_and_bg", name: "Glucose graph and value", about: "Recent readings beside the current value" },
@@ -88,7 +90,7 @@ const SCHEDULE_CYCLE = "cycle"
 
 // Clocks set up on 1.0.0 or earlier stored each face as its number, the face's index in this order.
 // Must match NUMBERED_FACE_IDS in SettingsSchedule.cpp.
-const NUMBERED_FACE_IDS = FACES.filter(f => !["cat", "night"].includes(f.id)).slice(0, 12).map(f => f.id)
+const NUMBERED_FACE_IDS = FACES.filter(f => !["cat", "night", "weather"].includes(f.id)).slice(0, 12).map(f => f.id)
 // Any other number is left as it is, so it is refused like any unknown face.
 const readFaceId = id => typeof id === "number" ? NUMBERED_FACE_IDS[id] ?? id : id
 
@@ -163,7 +165,11 @@ const ALARMS = [
     { t: "high", name: "High", compare: "Alert when above", defaultMelody: "high:d=4,o=5,b=125:4e7,p,4e7" },
     { t: "low", name: "Low", compare: "Alert when below", defaultMelody: "low:d=4,o=5,b=200:4e5,4p,4e5,4p,4e5" },
     { t: "urgent_low", name: "Urgent Low", compare: "Alert when below", defaultMelody: "urgent_low:d=4,o=5,b=230:4e6,4p,4e6,4p,4e6,4p,4e6" },
+    // Must match NO_DATA_DEFAULT_MELODY in SettingsAlarm.h.
+    { t: "no_data", name: "No data", compare: "Alert after no reading for", minutes: true, defaultMelody: "nodata:d=8,o=6,b=140:c,p,e,p,g,4p,g,p,e,p,c" },
 ]
+// How long without a reading before the no-data alert sounds.
+const NO_DATA_MINUTES = [[10, "10 minutes"], [15, "15 minutes"], [20, "20 minutes"], [30, "30 minutes"], [45, "45 minutes"], [60, "1 hour"]]
 const MELODY_PRESETS = [
     ["Double beep", "doublebeep:d=8,o=6,b=180:c,p,c"],
     ["Triple beep", "triplebeep:d=16,o=6,b=200:c,p,c,p,c"],
@@ -444,7 +450,7 @@ function validateConfig(c, ctx) {
     // Alarms
     for (const a of ALARMS) {
         if (!c[`alarm_${a.t}_enabled`]) continue
-        need(`alarm_${a.t}_value`, isGlucose(c[`alarm_${a.t}_value`], units), `${a.name} alert threshold value is required.`)
+        need(`alarm_${a.t}_value`, a.minutes ? inOptions(c[`alarm_${a.t}_value`], NO_DATA_MINUTES) : isGlucose(c[`alarm_${a.t}_value`], units), `${a.name} alert threshold value is required.`)
         need(`alarm_${a.t}_snooze_interval`, inOptions(c[`alarm_${a.t}_snooze_interval`], SNOOZES), `Please select ${a.name} alert snooze interval.`)
         need(`alarm_${a.t}_melody`, isValidRtttl(c[`alarm_${a.t}_melody`]), `Enter a valid RTTTL string (e.g. ${a.defaultMelody}).`)
         const bad = (c[`alarm_${a.t}_alert_windows`] || []).find(w => !w.days || !w.from || !w.to || w.from === w.to)

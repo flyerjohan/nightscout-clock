@@ -980,7 +980,7 @@ function alarmCard(a) {
 
         return el("div.stack.alarm-body",
             el("div.grid",
-                field(key("value"), a.compare, numberInput(key("value"), { units })),
+                field(key("value"), a.compare, a.minutes ? selectInput(key("value"), NO_DATA_MINUTES, { numeric: true }) : numberInput(key("value"), { units })),
                 field(key("snooze_interval"), "Snooze for", selectInput(key("snooze_interval"), SNOOZES, { numeric: true }))),
             field(key("melody"), "Alert sound", el("div.stack", el("div.row", preset, tryIt, tryHere), melody), "Choose a sound or enter a custom RTTTL melody."),
             alertWindows(a))

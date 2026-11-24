@@ -45,6 +45,9 @@ public:
     void setPower(bool power);
     void setBrightness(int bri);
     uint8_t getBrightness() const { return currentBrightness; }
+    // Applies the brightness again after the face or the alarm state changed.
+    void refreshBrightness() { setBrightness(currentBrightness); }
+    void setAlarmSounding(bool sounding);
     void update();
     bool isBrightnessOverlayActive() const;
     void clearMatrixPart(uint8_t x, uint8_t y, uint8_t width, uint8_t height, bool updateMatrix = false);
@@ -57,6 +60,7 @@ private:
     String brightnessOverlayText() const;
 
     FONT_TYPE currentFontType = FONT_TYPE::MEDIUM;
+    bool alarmSounding = false;
     bool brightnessOverlayActive = false;
     // "OFF" was selected: the overlay shows it, and the display goes dark when the overlay ends.
     bool powerOffAfterBrightnessOverlay = false;

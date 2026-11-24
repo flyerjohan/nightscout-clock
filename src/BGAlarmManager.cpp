@@ -59,6 +59,16 @@ void BGAlarmManager_::setup() {
         enabledAlarms.push_back(alarmData);
     }
 
+    noDataAlarmEnabled = SettingsManager.settings.alarm_no_data_enabled;
+    noDataSeconds = SettingsManager.settings.alarm_no_data_minutes * 60;
+    noDataAlarm.bottom = 0;
+    noDataAlarm.top = 0;
+    noDataAlarm.snoozeTimeMinutes = SettingsManager.settings.alarm_no_data_snooze_minutes;
+    noDataAlarm.alertWindows = SettingsManager.settings.alarm_no_data_alert_windows;
+    noDataAlarm.lastAlarmTime = 0;
+    noDataAlarm.alarmSound = SettingsManager.settings.alarm_no_data_melody;
+    noDataAlarm.isSnoozed = false;
+
     if (SettingsManager.settings.alarm_intensive_mode) {
         alarmIntervalSeconds = ALARM_REPEAT_INTERVAL_INTENSIVE_SECONDS;  // repeat every 2 seconds
     } else {
@@ -87,7 +97,70 @@ static bool isInsideAlertWindow(const std::vector<AlertWindow>& alertWindows) {
 #endif
 
 void BGAlarmManager_::tick() {
+    tickAlarms();
+
+    // The display brightens while an alarm sounds, also over the night face, so the value can be read.
+    const bool sounding = isSounding();
+    if (sounding != wasSounding) {
+        wasSounding = sounding;
+        DisplayManager.setAlarmSounding(sounding);
+    }
+}
+
+// The no-data alarm: after noDataSeconds without a reading, counted from the start of the clock when
+// no reading came yet. It repeats and snoozes like the glucose alarms; a snooze of 0 lasts until the
+// data comes back.
+void BGAlarmManager_::tickNoDataAlarm() {
+    if (!isInsideAlertWindow(noDataAlarm.alertWindows)) {
+        if (activeAlarm == &noDataAlarm) {
+            noDataAlarm.isSnoozed = false;
+            activeAlarm = NULL;
+        }
+        return;
+    }
+
+    const unsigned long now = ServerManager.getUtcEpoch();
+    if (activeAlarm != &noDataAlarm) {
+        activeAlarm = &noDataAlarm;
+        noDataAlarm.isSnoozed = false;
+        noDataAlarm.lastAlarmTime = now;
+        PeripheryManager.playRTTTLString(noDataAlarm.alarmSound);
+        DEBUG_PRINTLN("Playing no-data alarm sound (no reading for too long)");
+        return;
+    }
+
+    if (noDataAlarm.isSnoozed) {
+        if (noDataAlarm.snoozeTimeMinutes != 0 &&
+            now - noDataAlarm.lastAlarmTime > 60UL * noDataAlarm.snoozeTimeMinutes) {
+            noDataAlarm.isSnoozed = false;
+            noDataAlarm.lastAlarmTime = now;
+            PeripheryManager.playRTTTLString(noDataAlarm.alarmSound);
+        }
+        return;
+    }
+
+    if (now - noDataAlarm.lastAlarmTime > static_cast<unsigned long>(alarmIntervalSeconds)) {
+        noDataAlarm.lastAlarmTime = now;
+        PeripheryManager.playRTTTLString(noDataAlarm.alarmSound);
+    }
+}
+
+void BGAlarmManager_::tickAlarms() {
     auto glucoseReading = bgDisplayManager.getLastDisplayedGlucoseReading();
+
+    // A reading dated a little in the future, by clock drift, counts as fresh.
+    const int secondsAgo = glucoseReading == nullptr ? millis() / 1000 : glucoseReading->getSecondsAgo();
+    const unsigned long silentSeconds = secondsAgo < 0 ? 0 : secondsAgo;
+    if (noDataAlarmEnabled && silentSeconds > static_cast<unsigned long>(noDataSeconds)) {
+        tickNoDataAlarm();
+        return;
+    }
+    if (activeAlarm == &noDataAlarm) {
+        // The data is back.
+        noDataAlarm.isSnoozed = false;
+        activeAlarm = NULL;
+    }
+
     if (glucoseReading == nullptr ||
         glucoseReading->getSecondsAgo() >
             SettingsManager.settings.bg_data_too_old_threshold_minutes * 60) {

@@ -101,6 +101,12 @@ public:
     String alarm_high_melody;
     String alarm_low_melody;
     String alarm_urgent_low_melody;
+    // Sounds when no reading has arrived for alarm_no_data_minutes, also while the clock is offline.
+    bool alarm_no_data_enabled;
+    int alarm_no_data_minutes;
+    int alarm_no_data_snooze_minutes;
+    std::vector<AlertWindow> alarm_no_data_alert_windows;
+    String alarm_no_data_melody;
     bool additional_wifi_enable;
     String additional_wifi_type;
     String additional_wifi_ssid;
