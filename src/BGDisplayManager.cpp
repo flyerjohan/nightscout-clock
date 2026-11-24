@@ -54,6 +54,8 @@ void BGDisplayManager_::setup() {
         {"big_text_rainbow", "Rainbow big text", new BGDisplayFaceBigTextRainbow()},
         {"rainbow_mood", "Rainbow mood", new BGDisplayFaceRainbowMood()},
         {"battery_uptime", "Battery and uptime", new BGDisplayFaceBatteryUptime()},
+        {"cat", "Cat", new BGDisplayFaceCat()},
+        {"night", "Night", new BGDisplayFaceNight()},
     };
 
     configureActiveFaces();
@@ -145,29 +147,35 @@ void BGDisplayManager_::setFaceByIndex(int index) {
     runRenderCycle(RenderReason::FACE_CHANGE, ServerManager.getTimezonedTime());
 }
 
+const std::vector<int>& BGDisplayManager_::cycleOrder() const {
+    return scheduleCycling ? scheduleCycleFaces : activeFaces;
+}
+
 void BGDisplayManager_::showNextFace() {
-    if (activeFaces.empty()) {
+    const std::vector<int>& order = cycleOrder();
+    if (order.empty()) {
         return;
     }
 
-    auto current = std::find(activeFaces.begin(), activeFaces.end(), currentFaceIndex);
-    if (current == activeFaces.end()) {
-        setFaceByIndex(activeFaces.front());
+    auto current = std::find(order.begin(), order.end(), currentFaceIndex);
+    if (current == order.end()) {
+        setFaceByIndex(order.front());
         return;
     }
 
     current++;
-    setFaceByIndex(current == activeFaces.end() ? activeFaces.front() : *current);
+    setFaceByIndex(current == order.end() ? order.front() : *current);
 }
 
 void BGDisplayManager_::showPreviousFace() {
-    if (activeFaces.empty()) {
+    const std::vector<int>& order = cycleOrder();
+    if (order.empty()) {
         return;
     }
 
-    auto current = std::find(activeFaces.begin(), activeFaces.end(), currentFaceIndex);
-    if (current == activeFaces.end() || current == activeFaces.begin()) {
-        setFaceByIndex(activeFaces.back());
+    auto current = std::find(order.begin(), order.end(), currentFaceIndex);
+    if (current == order.end() || current == order.begin()) {
+        setFaceByIndex(order.back());
     } else {
         setFaceByIndex(*--current);
     }
@@ -179,7 +187,7 @@ void BGDisplayManager_::resetFaceCycleTimer() {
 }
 
 void BGDisplayManager_::updateFaceCycle() {
-    if (!faceCycleActive) {
+    if (!faceCycleActive && !scheduleCycling) {
         return;
     }
 
@@ -269,11 +277,12 @@ bool BGDisplayManager_::drawAnimationFrame(bool dataIsOld, bool redraw) {
     return true;
 }
 
-// Cycling and the schedule both own the face, so cycling wins when both are on.
+// Cycling and the schedule both own the face, so cycling wins when both are on. A schedule row can
+// cycle through the active faces itself, which lets the day cycle and the night show one face.
 void BGDisplayManager_::configureFaceSchedule() {
     faceSchedule.clear();
     for (const FaceScheduleEntry& entry : SettingsManager.settings.face_schedule) {
-        if (findFaceIndex(entry.face) >= 0) {
+        if (findFaceIndex(entry.face) >= 0 || entry.face == SCHEDULE_CYCLE_FACE) {
             faceSchedule.push_back(entry);
         }
     }
@@ -284,6 +293,19 @@ void BGDisplayManager_::configureFaceSchedule() {
         });
     appliedScheduleEntry = -1;
     lastScheduleMinuteOfDay = -1;
+    scheduleCycling = false;
+    scheduleCycleFaces.clear();
+    for (int index : activeFaces) {
+        const bool shownByARow = std::any_of(
+            faceSchedule.begin(), faceSchedule.end(),
+            [&](const FaceScheduleEntry& entry) { return entry.face == faces[index].id; });
+        if (!shownByARow) {
+            scheduleCycleFaces.push_back(index);
+        }
+    }
+    if (scheduleCycleFaces.size() < 2) {
+        scheduleCycleFaces = activeFaces;
+    }
     faceScheduleActive =
         SettingsManager.settings.face_schedule_enabled && !faceCycleActive && !faceSchedule.empty();
 }
@@ -341,6 +363,15 @@ void BGDisplayManager_::applyScheduleEntry(const FaceScheduleEntry& entry) {
         SettingsManager.settings.brightness_level = entry.brightness - 1;
     }
     DisplayManager.applySettings();
+    // A cycling row runs through the active faces from the first one; it needs two of them to cycle.
+    if (entry.face == SCHEDULE_CYCLE_FACE) {
+        scheduleCycling = scheduleCycleFaces.size() >= 2;
+        if (!scheduleCycleFaces.empty()) {
+            setFaceByIndex(scheduleCycleFaces.front());
+        }
+        return;
+    }
+    scheduleCycling = false;
     setFace(entry.face);
 }
 

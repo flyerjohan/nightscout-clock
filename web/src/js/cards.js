@@ -406,8 +406,10 @@ function facesCard() {
         const active = FACES.filter(f => activeFaceIds(form.get("inactive_faces")).includes(f.id))
         return field("default_face", "Face shown by default", selectInput("default_face", active.map(f => [f.id, f.name])))
     })
-    // Show the cycling interval buttons only when automatic face cycling is enabled.
-    const interval = reactive(["face_cycle_enabled"], () => form.get("face_cycle_enabled")
+    // Show the cycling interval buttons when faces cycle: by the cycling switch, or by a cycling schedule row.
+    const scheduleCycles = () => !!form.get("face_schedule_enabled") &&
+        (form.get("face_schedule") || []).some(row => row.face === SCHEDULE_CYCLE)
+    const interval = reactive(["face_cycle_enabled", "face_schedule_enabled", "face_schedule"], () => form.get("face_cycle_enabled") || scheduleCycles()
         ? field("face_cycle_interval_seconds", "Change face every", segmented("face_cycle_interval_seconds", CYCLE_INTERVALS, { numeric: true, label: "Change face every" }))
         : el("span", { hidden: true }))
     // Rebuild the cycling switch when scheduling changes so the two modes cannot be enabled together.
@@ -565,7 +567,7 @@ function faceScheduleCard() {
                 return el("div.stack",
                     el("div.grid",
                         field(key + "_time", "Time", time),
-                        field(key + "_face", "Clock face", select("face", FACES.filter(f => activeFaceIds(form.get("inactive_faces")).includes(f.id)).map(f => [f.id, f.name]))),
+                        field(key + "_face", "Clock face", select("face", [[SCHEDULE_CYCLE, "Cycle through the active faces"], ...FACES.filter(f => activeFaceIds(form.get("inactive_faces")).includes(f.id)).map(f => [f.id, f.name])])),
                         field(key + "_brightness", "Brightness", select("brightness", brightnessOptions))),
                     // Remove the chosen row from a copied array, validate it, and rebuild row indices and controls.
                     el("button.btn.sm", { type: "button", "aria-label": `Remove scheduled time ${i + 1}`, onclick: () => {
@@ -586,7 +588,7 @@ function faceScheduleCard() {
         } }, icon("plus"), "Add time")
         draw()
         return field(key, null, el("div.stack", rows, add),
-            "Add up to 8 different times. Each row applies its face and brightness until the next scheduled time, including overnight.")
+            "Add up to 8 different times. Each row applies its face and brightness until the next scheduled time, including overnight. A cycling row runs through the active faces that no other row shows, at the cycling interval.")
     })
     return card("Daily schedule", null, el("div.stack", toggle, body), { id: "card_schedule" })
 }

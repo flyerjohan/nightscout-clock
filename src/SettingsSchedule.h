@@ -8,6 +8,9 @@
 
 // From this time of day, show this face at this brightness. The brightness is the Web UI's
 // value: 1-10 for a manual level, 100 and 101 for the two automatic modes.
+// A schedule row with this face cycles through the active faces instead of showing one.
+const char* const SCHEDULE_CYCLE_FACE = "cycle";
+
 struct FaceScheduleEntry {
     int startMinutes = 0;  // minutes since midnight, 0-1439
     String face;

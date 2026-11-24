@@ -62,6 +62,8 @@
 
 // Stable IDs must match BGDisplayManager::setup(); array order controls UI display order.
 const FACES = [
+    { id: "cat", name: "Cat", about: "A little cat that reacts to the glucose, beside the value" },
+    { id: "night", name: "Night", about: "Red value and arrow that stay still, for a dark bedroom" },
     { id: "simple", name: "Simple", about: "Value, trend arrow and age bars" },
     { id: "graph", name: "Full glucose graph", about: "Three hours of readings across the panel" },
     { id: "graph_and_bg", name: "Glucose graph and value", about: "Recent readings beside the current value" },
@@ -80,9 +82,13 @@ const FACES = [
     { id: "battery_uptime", name: "Battery and uptime", about: "Battery level and time since start, no glucose" },
 ]
 
+// A schedule row with this face cycles through the active faces that no other row shows.
+// Must match SCHEDULE_CYCLE_FACE in SettingsSchedule.h.
+const SCHEDULE_CYCLE = "cycle"
+
 // Clocks set up on 1.0.0 or earlier stored each face as its number, the face's index in this order.
 // Must match NUMBERED_FACE_IDS in SettingsSchedule.cpp.
-const NUMBERED_FACE_IDS = FACES.slice(0, 12).map(f => f.id)
+const NUMBERED_FACE_IDS = FACES.filter(f => !["cat", "night"].includes(f.id)).slice(0, 12).map(f => f.id)
 // Any other number is left as it is, so it is refused like any unknown face.
 const readFaceId = id => typeof id === "number" ? NUMBERED_FACE_IDS[id] ?? id : id
 
@@ -396,7 +402,7 @@ function validateConfig(c, ctx) {
         const rows = c.face_schedule
         need("face_schedule", !c.face_cycle_enabled, "Turn off face cycling before enabling the schedule.")
         need("face_schedule", rows.length >= 1 && rows.length <= 8, "Add between 1 and 8 scheduled times, or turn the schedule off.")
-        need("face_schedule", rows.every(row => active.includes(row.face)), "Choose an active clock face for every scheduled time.")
+        need("face_schedule", rows.every(row => row.face === SCHEDULE_CYCLE || active.includes(row.face)), "Choose an active clock face for every scheduled time.")
         need("face_schedule", rows.every(row => isTime(row.time)), "Every row needs a valid time.")
         need("face_schedule", new Set(rows.map(row => row.time)).size === rows.length, "Two rows have the same time.")
     }

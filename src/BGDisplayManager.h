@@ -11,10 +11,12 @@
 #include "BGDisplayFaceBigText.h"
 #include "BGDisplayFaceBigTextDark.h"
 #include "BGDisplayFaceBigTextRainbow.h"
+#include "BGDisplayFaceCat.h"
 #include "BGDisplayFaceClock.h"
 #include "BGDisplayFaceDragon.h"
 #include "BGDisplayFaceGraph.h"
 #include "BGDisplayFaceGraphAndBG.h"
+#include "BGDisplayFaceNight.h"
 #include "BGDisplayFaceNyanUnicorn.h"
 #include "BGDisplayFaceRaceCar.h"
 #include "BGDisplayFaceRainbowClock.h"
@@ -100,6 +102,12 @@ private:
     unsigned long lastFrequentRefreshMillis = 0;
     std::vector<FaceScheduleEntry> faceSchedule;  // sorted by start time
     bool faceScheduleActive = false;
+    // True while the schedule row in force is a cycling row.
+    bool scheduleCycling = false;
+    // The active faces a cycling schedule row runs through: those no other row shows, so the night face
+    // stays out of the day's cycle. All active faces when fewer than two are left.
+    std::vector<int> scheduleCycleFaces;
+    const std::vector<int>& cycleOrder() const;
     int appliedScheduleEntry = -1;
     int lastScheduleMinuteOfDay = -1;
     bool brightnessOverlayWasActive = false;
